@@ -752,4 +752,16 @@ class TagzTest < Test::Unit::TestCase
     actual = Tagz{ div_{ Tagz.html_safe('&#215;') }  }
     assert_equal expected, actual
   end
+
+  def test_621
+    expected = '<?xml version="1.0" encoding="utf-8" ?><foo>hello root</foo>'
+    actual = Tagz{ foo_ "hello root" }
+    assert_equal expected, actual.to_xml
+  end
+
+  def test_622
+    expected = '<?xml version="1.0" encoding="xyzzy" ?><foo>hello root</foo>'
+    actual = Tagz{ foo_ "hello root" }
+    assert_equal expected, actual.to_xml(:xyzzy)
+  end
 end

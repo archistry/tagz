@@ -298,6 +298,10 @@ unless defined? Tagz
           def to_str
             self
           end
+
+          def to_xml(encoding = 'utf-8')
+            "<?xml version=\"1.0\" encoding=\"#{encoding}\" ?>" << to_s
+          end
         end
         Tagz.singleton_class{ define_method(:document){ Tagz.namespace(:Document) } }
 
