@@ -764,4 +764,160 @@ class TagzTest < Test::Unit::TestCase
     actual = Tagz{ foo_ "hello root" }
     assert_equal expected, actual.to_xml(:xyzzy)
   end
+
+  def test_623
+    prefix = :q
+    uri = "Q:"
+    nsm = Tagz.namespace(:XMLNamespaceManager).new
+    nsm.register_namespace(prefix, uri)
+    assert_equal prefix.to_s, nsm.get_prefix(uri)
+    assert_equal uri, nsm.get_uri(prefix)
+  end
+
+  def test_624
+    prefix = :q
+    uri = "Q:"
+    nsm = Tagz.namespace(:XMLNamespaceManager).new
+    nsm.register_namespace(prefix, uri)
+
+    e = assert_raise(ArgumentError) { nsm.register_namespace(:a, uri) }
+    assert_equal("namespace URI 'Q:' already registered with prefix 'q'", e.message)
+    e = assert_raise(ArgumentError) { nsm.register_namespace(prefix, "R:") }
+    assert_equal("prefix 'q' already registered with URI 'Q:'", e.message)
+  end
+
+  def test_625
+    prefix = :q
+    uri = "Q:"
+    nsm = Tagz.namespace(:XMLNamespaceManager).new
+
+    e = assert_raise(ArgumentError) { nsm.unregister_namespace(prefix, uri) }
+    assert_equal("prefix 'q' not registered for URI 'Q:'", e.message)
+  end
+
+  def test_626
+    prefix = :q
+    uri = "Q:"
+    nsm = Tagz.namespace(:XMLNamespaceManager).new
+    nsm.register_namespace(prefix, uri)
+    nsm.unregister_namespace(prefix, uri)
+    
+    e = assert_raise(ArgumentError) { nsm.unregister_namespace(prefix, uri) }
+    assert_equal("prefix 'q' not registered for URI 'Q:'", e.message)
+  end
+
+  def test_627
+    prefix = :q
+    uri = "Q:"
+    nsm = Tagz.namespace(:XMLNamespaceManager).new
+    nsm.register_namespace(prefix, uri)
+    nsm.clear
+    
+    e = assert_raise(ArgumentError) { nsm.unregister_namespace(prefix, uri) }
+    assert_equal("prefix 'q' not registered for URI 'Q:'", e.message)
+  end
+
+  def test_628
+    uri = "Q:"
+    nsm = Tagz.namespace(:XMLNamespaceManager).new
+    prefix = nsm.autoregister_namespace(uri)
+
+    assert_equal prefix, nsm.get_prefix(uri)
+  end
+
+  def test_629
+    uri = "Q:"
+    nsm = Tagz.namespace(:XMLNamespaceManager).new
+    prefix = nsm.autoregister_namespace(uri)
+
+    e = assert_raise(ArgumentError) { nsm.autoregister_namespace(uri) }
+    assert_equal("namespace URI 'Q:' already registered with prefix 'a0'", e.message)
+  end
+
+  # use a namespace before it is registered, meaning an
+  # automatically generated prefix will be used
+
+  def test_630
+    c = Class.new{
+      include Tagz.privately
+      def a
+        tagz(:xmlns => "Q:") { root_( ){ 'content' } }
+      end
+    }.new
+
+    expected = '<?xml version="1.0" encoding="utf-8" ?><a0:root xmlns:a0 = "Q:">content</a0:root>'
+    actual = c.a.to_xml
+
+    assert_equal expected, actual
+  end
+
+  def test_631
+    actual = new_root_(:xmlns => "DEFAULT:") { 
+              child_("hello") { 
+                grandchild_ "bitchin!"
+              }
+            }.to_xml
+
+    expected = '<?xml version="1.0" encoding="utf-8" ?><new_root xmlns="DEFAULT:"><child>hello<grandchild>bitchin!</grandchild></child></new_root>'
+
+    assert_equal expected, actual
+  end
+
+  def test_632
+    actual = tagz__("my-new-root", "xmlns:d" => "DEFAULT:") {
+              child_("hello") {
+                grandchild_ "bitchin!"
+                level3_ {
+                  level4_ {
+                    level5_ "whee!!"
+                  }
+                }
+              }
+            }.to_xml
+
+    expected = '<?xml version="1.0" encoding="utf-8" ?><d:my-new-root xmlns:d="DEFAULT:"><d:child>hello<d:grandchild>bitchin!</d:grandchild><d:level3><d:level4><d:level5>whee!!</d:level5></d:level4></d:level3></d:child></d:my-new-root>'
+
+    assert_equal expected, actual
+  end
+
+  def test_633
+    actual = tagz(:xmlns => "DEFAULT:") {
+          root_ {
+            level1_ {
+              level2_ {
+                level3_ {
+                  level4_ {
+                    level5_ {
+                      "content"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }.to_xml
+    
+    expected = '<?xml version="1.0" encoding="utf-8" ?><a0:root xmlns:a0="DEFAULT:"><a0:level1><a0:level2><a0:level3><a0:level4><a0:level5>content</a0:level5></a0:level4></a0:level3></a0:level2></a0:level1></a0:root>'
+
+    assert_equal expected, actual
+  end
+
+  def test_634
+    actual = tagz(:xmlns => "DEFAULT:") {
+            root2_ {
+              child_("hello") {
+                grandchild_ "bitchin!"
+               level3_ {
+                  level4_ {
+                    level5_ "whee!!"
+                  }
+                }
+              }
+            }
+          }.to_xml
+
+    expected = '<?xml version="1.0" encoding="utf-8" ?><a0:root2 xmlns:a0="DEFAULT:"><a0:child>hello<a0:grandchild>bitchin!</a0:grandchild><a0:level3><a0:level4><a0:level5>whee!!</a0:level5></a0:level4></a0:level3></a0:child></a0:root2>'
+
+    assert_equal expected, actual
+  end
 end

@@ -7,7 +7,7 @@ unless defined? Tagz
     require 'cgi'
 
     def Tagz.version()
-      '9.9.2'
+      '10.0.0'
     end
 
     def Tagz.description
@@ -29,12 +29,31 @@ unless defined? Tagz
   private
     # access tagz doc and enclose tagz operations
     #
-      def tagz(document = nil, &block)
+      def tagz(*argv, &block)
         @tagz ||= nil ## shut wornings up
         previous = @tagz
 
+
+        xmlns = nil
+        options = argv.last.is_a?(Hash) ? argv.pop : {}
+        document = argv.first
+        options.each do |key, value|
+          case key.to_s
+          when "xmlns"
+            xmlns = value
+          when "tagz_reset"
+            if value
+              @tagz = nil
+              previous = @tagz
+            end
+          else
+            raise ArgumentError.new("unsupported option '#{key}'")
+          end
+        end
+
         if block
           @tagz ||= (Tagz.document.for(document) || Tagz.document.new)
+          @tagz.using_namespace(xmlns)
 
           begin
             previous_size = @tagz.size
@@ -49,6 +68,7 @@ unless defined? Tagz
               @tagz << content
             end
 
+            @tagz.reset_namespace
             @tagz
           ensure
             @tagz = previous
@@ -66,13 +86,32 @@ unless defined? Tagz
         content = argv
         attributes = ''
 
+        # Fix for existing bug if the root element has dashes
+        # and this method is called without the #tagz wrapper
+        @tagz ||= Tagz.document.new
+
+        if tagz.has_prefix? && tagz.size == 0
+          # We've been given a namespace in a closing
+          # outer block and we haven't written anything
+          # yet, so we output the namespace declarations
+          options.merge! tagz.namespace_attrs
+        end
+
         unless options.empty?
           booleans = []
           options.each do |key, value|
-            if key.to_s =~ Tagz.namespace(:Boolean)
+            case key.to_s
+            when /#{Tagz.namespace(:Boolean)}/
               value = value.to_s =~ %r/\Atrue\Z/imox ? nil : "\"#{ key.to_s.downcase.strip }\""
               booleans.push([key, value].compact)
               next
+            when /^xmlns:?(.*)/
+              rp = tagz.get_prefix(value)
+              unless ("" == $1 && :default == rp) \
+                  || $1 == tagz.get_prefix(value)
+                tagz.reset_namespace($1, value)
+                tagz.using_namespace(value)
+              end
             end
 
             key = Tagz.escape_key(key)
@@ -93,7 +132,8 @@ unless defined? Tagz
           end
         end
 
-        tagz.push "<#{ name }#{ attributes }>"
+        tagz.using_namespace if tagz.prefix
+        tagz.push "<#{ tagz.node(name) }#{ attributes }>"
 
         if content.empty?
           if block
@@ -104,22 +144,23 @@ unless defined? Tagz
               unless(tagz.size > size)
                 tagz[-1] = "/>"
               else
-                tagz.push "</#{ name }>"
+                tagz.push "</#{ tagz.node(name) }>"
               end
             else
               tagz << value.to_s unless(tagz.size > size)
-              tagz.push "</#{ name }>"
+              tagz.push "</#{ tagz.node(name) }>"
             end
-
           end
         else
           tagz << content.join
           if block
             size = tagz.size
+
             value = block.arity.abs >= 1 ? block.call(tagz) : block.call()
             tagz << value.to_s unless(tagz.size > size)
           end
-          tagz.push "</#{ name }>"
+          tagz.push "</#{ tagz.node(name) }>"
+          tagz.reset_namespace
         end
 
         tagz
@@ -128,7 +169,9 @@ unless defined? Tagz
     # close_tag
     #
       def __tagz(tag, *a, &b)
-        tagz.push "</#{ tag }>"
+        tagz.push "</#{ tagz.node(tag) }>"
+        tagz.reset_namespace
+        tagz
       end
 
     # catch special tagz methods
@@ -299,8 +342,66 @@ unless defined? Tagz
             self
           end
 
+          # new XML support
+          attr_reader :prefix
+
           def to_xml(encoding = 'utf-8')
             "<?xml version=\"1.0\" encoding=\"#{encoding}\" ?>" << to_s
+          end
+
+          def using_namespace(nsuri = nil)
+            if nsuri
+              unless @prefix = @nsm.get_prefix(nsuri)
+                @prefix = @nsm.autoregister_namespace(nsuri)
+#                STDOUT.puts "AUTOREGISTER: #{@prefix}:#{nsuri}"
+              end
+            end
+
+            @nslist << @prefix
+          end
+
+          def reset_namespace(prefix = nil, uri = nil)
+            if prefix && uri
+              @nsm.clear
+              prefix = (prefix == "" || prefix.nil? ? :default : prefix)
+              @nsm.register_namespace(prefix, uri)
+            else
+              prefix = @nslist.pop
+            end
+            @prefix = prefix
+          end
+
+          def node(name)
+            @prefix && @prefix != :default ? "#{prefix}:#{name}" : name
+          end
+
+          def namespace_attrs
+            @nsm.namespace_list.each_with_object({}) do |(k, v), h|
+              if :default == k
+                h[:xmlns] = v
+              else
+                h["xmlns:#{k}"] = v
+              end
+            end
+          end
+
+          def has_prefix?
+            !@prefix.nil?
+          end
+
+          def get_prefix(uri)
+            @nsm.get_prefix(uri)
+          end
+
+          def depth
+            @nslist.size
+          end
+
+          def initialize(*a)
+            super(*a)
+            @nsm = XMLNamespaceManager.new
+            @prefix = nil
+            @nslist = []
           end
         end
         Tagz.singleton_class{ define_method(:document){ Tagz.namespace(:Document) } }
@@ -354,6 +455,88 @@ unless defined? Tagz
           end
         end
         Tagz.singleton_class{ define_method(:element){ Tagz.namespace(:Element) } }
+        
+        class XMLNamespaceManager
+          def initialize
+            @nsxuri = {}
+            @nsxpfx = {}
+          end
+
+          def set_default_namespace(nsuri)
+            register_namespace(:default, nsuri)
+          end
+
+          def register_namespace(prefix, uri)
+            prefix, uri = param_fix(prefix, uri)
+            if (p = get_prefix(uri)) && prefix != p
+              raise ArgumentError.new("namespace URI '#{uri}' already registered with prefix '#{p}'")
+            end
+            if (u = get_uri(prefix)) && uri != u
+              raise ArgumentError.new("prefix '#{prefix}' already registered with URI '#{u}'")
+            end
+
+            @nsxuri[uri] = prefix
+            @nsxpfx[prefix] = uri
+            self
+          end
+
+          def unregister_namespace(prefix, uri)
+            prefix, uri = param_fix(prefix, uri)
+            if (u = get_uri(prefix)) \
+                && (p = get_prefix(uri)) \
+                && prefix == p \
+                && uri == u
+              @nsxuri.delete(uri)
+              @nsxpfx.delete(prefix)
+            else
+              raise ArgumentError.new("prefix '#{prefix}' not registered for URI '#{uri}'")
+            end
+            self
+          end
+
+          def autoregister_namespace(uri)
+            uri = uri.to_s
+
+            if p = get_prefix(uri)
+              raise ArgumentError.new("namespace URI '#{uri}' already registered with prefix '#{p}'")
+            end
+
+            prefix = generate_prefix
+            register_namespace(prefix, uri)
+            prefix
+          end
+
+          def get_prefix(nsuri)
+            @nsxuri[nsuri.to_s]
+          end
+
+          def get_uri(prefix)
+            @nsxpfx[prefix.to_s]
+          end
+
+          def clear
+            @nsxuri.clear
+            @nsxpfx.clear
+          end
+
+          def namespace_list
+            @nsxpfx.clone
+          end
+
+        private
+          def param_fix(prefix, uri)
+            prefix = prefix.to_s unless prefix == :default
+            [ prefix, uri = uri.to_s ]
+          end
+          
+          def generate_prefix
+            ('a'..'z').each do |l|
+              ('0'..'9').each do |d|
+                return (p = l + d) unless @nsxpfx.has_key? p
+              end
+            end
+          end
+        end
 
         NoEscapeContentProc = lambda{|*contents| contents.join}
         Tagz.singleton_class{ define_method(:no_escape_content_proc){ Tagz.namespace(:NoEscapeContentProc) } }
