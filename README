@@ -14,7 +14,7 @@ DESCRIPTION
 
   tagz.rb is generates html, xml, or any sgml variant like a small ninja
   running across the backs of a herd of giraffes swatting of heads like a
-  mark-up weedwacker.  Weighing in at less than 750 lines of code tagz.rb adds
+  mark-up weedwacker.  Weighing in at less than 800 lines of code tagz.rb adds
   an html/xml/sgml syntax to ruby that is both unobtrusive, safe, and available
   globally to objects without the need for any builder or superfluous objects.
   tagz.rb is designed for applications that generate html to be able to do so
@@ -119,38 +119,38 @@ XML NAMESPACES
   using namespaces you explicitly include on a node
 
     feed_("xmlns:a" => "http://www.w3.org/2005/Atom") {
-      title_ "Example Feed"
-      link_!(:href => "http://example.org/")
-      updated_ "2003-12-13T18:30:02Z"
+      title_ "..."
+      link_!(:href => "http://...")
+      updated_ "..."
       author_ {
-        name_ "John Doe"
+        name_ "..."
       }
-      id_ "urn:uuid:60a76c80-d399-11d9-b93C-0003939e0af6"
+      id_ "..."
       entry_ {
-        title_ "Atom-Powered Robots Run Amok"
-        link_!(:href => "http://example.org/2003/12/13/atom03")
-        id_ "urn:uuid:1225c695-cfb8-4ebb-aaaa-80da344efa6a"
-        updated_ "2003-12-13T18:30:02Z"
-        summary_ "Some text."
+        title_ "..."
+        link_!(:href => "http://...")
+        id_ "..."
+        updated_ "..."
+        summary_ "..."
       }
     }.to_xml
 
   same with defining a default namespace
 
-    feed_(:xmlns => "http://www.w3.org/2005/Atom") {
-      title_ "Example Feed"
-      link_!(:href => "http://example.org/")
-      updated_ "2003-12-13T18:30:02Z"
+    feed_("xmlns" => "http://www.w3.org/2005/Atom") {
+      title_ "..."
+      link_!(:href => "http://...")
+      updated_ "..."
       author_ {
-        name_ "John Doe"
+        name_ "..."
       }
-      id_ "urn:uuid:60a76c80-d399-11d9-b93C-0003939e0af6"
+      id_ "..."
       entry_ {
-        title_ "Atom-Powered Robots Run Amok"
-        link_!(:href => "http://example.org/2003/12/13/atom03")
-        id_ "urn:uuid:1225c695-cfb8-4ebb-aaaa-80da344efa6a"
-        updated_ "2003-12-13T18:30:02Z"
-        summary_ "Some text."
+        title_ "..."
+        link_!(:href => "http://...")
+        id_ "..."
+        updated_ "..."
+        summary_ "..."
       }
     }.to_xml
 
@@ -164,11 +164,28 @@ XML NAMESPACES
       }
     }.to_xml
 
-  NOTE: if you want to use more than one namespace in a document, it's
-  better to use the namespace definitions in a tagz block than doing a
-  mix and match of styles.  The automatic handling of the 'xmlns'
-  attribute is really only intended for use when you only have a single
-  namespace.
+  pick-a-mix approach with multiple levels of nested namespaces
+
+    root_("xmlns:a" => NSA) {
+      a_child1_ {
+        a_child2_ {
+          tagz(:xmlns => NSB) {
+            b_child1_!
+            b_child2_ "hello"
+            b_child3_ {
+              b_child4_ "some content"
+            }
+          }
+        }
+        a_child2_ {
+          tagz(:xmlns => NSB) {
+            b_child1_ "content1"
+            b_child2_ "content2"
+            b_child3_!
+          }
+        }
+      }
+    }.to_xml
 
 INSTALL
 

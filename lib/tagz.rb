@@ -88,12 +88,12 @@ unless defined? Tagz
         # and this method is called without the #tagz wrapper
         @tagz ||= Tagz.document.new
 
-        if tagz.has_prefix? && tagz.size == 0
-          # We've been given a namespace in a closing
-          # outer block and we haven't written anything
-          # yet, so we output the namespace declarations
-          options.merge! tagz.namespace_attrs
-        end
+#        if tagz.has_prefix? && tagz.size == 0
+#          # We've been given a namespace in a closing
+#          # outer block and we haven't written anything
+#          # yet, so we output the namespace declarations
+#          options.merge! tagz.namespace_attrs
+#        end
 
         unless options.empty?
           booleans = []
@@ -108,7 +108,7 @@ unless defined? Tagz
               unless ("" == $1 && :default == rp) \
                   || $1 == tagz.get_prefix(value)
                 tagz.reset_namespace($1, value)
-                tagz.using_namespace(value)
+                tagz.using_namespace(value, true)
               end
             end
 
@@ -157,8 +157,8 @@ unless defined? Tagz
 
             value = block.arity.abs >= 1 ? block.call(tagz) : block.call()
             tagz << value.to_s unless(tagz.size > size)
-            tagz.reset_namespace if tagz.prefix
           end
+          tagz.reset_namespace if tagz.prefix
           tagz.push "</#{ tagz.node(name) }>"
         end
 
@@ -357,6 +357,8 @@ unless defined? Tagz
           attr_reader :prefix
 
           def to_xml(encoding = 'utf-8')
+            # need to make sure all the namespaces are defined
+            fix_root_ns
             "<?xml version=\"1.0\" encoding=\"#{encoding}\" ?>" << to_s
           end
 
@@ -368,14 +370,14 @@ unless defined? Tagz
             @nsm.register_default_namespace(nsuri)
           end
 
-          def using_namespace(nsuri = nil)
+          def using_namespace(nsuri = nil, defined = false)
             if nsuri
               unless @prefix = @nsm.get_prefix(nsuri)
                 @prefix = @nsm.autoregister_namespace(nsuri)
 #                STDOUT.puts "AUTOREGISTER: #{@prefix}:#{nsuri}"
               end
+              @nsdef[@prefix] = defined
             end
-
             @nslist << @prefix
           end
 
@@ -384,6 +386,7 @@ unless defined? Tagz
               @nsm.clear
               prefix = (prefix == "" || prefix.nil? ? :default : prefix)
               @nsm.register_namespace(prefix, uri)
+              @nsdef[prefix] = false unless @nsdef.has_key? prefix
             else
               @nslist.pop
               prefix = @nslist[-1]
@@ -397,11 +400,7 @@ unless defined? Tagz
 
           def namespace_attrs
             @nsm.namespace_list.each_with_object({}) do |(k, v), h|
-              if :default == k
-                h[:xmlns] = v
-              else
-                h["xmlns:#{k}"] = v
-              end
+              h.merge(nsattr(k, v))
             end
           end
 
@@ -417,11 +416,36 @@ unless defined? Tagz
             @nslist.size
           end
 
+          def fix_root_ns
+            i = index(">")
+            attrs = ""
+            @nsdef.each do |k,v|
+              unless v
+                ns = nsattr(k, @nsm.get_uri(k)).flatten
+                attrs << " #{ns[0]}=\"#{ns[1]}\""
+              end
+            end
+            insert(i, attrs)
+          end
+
+          def nsattr(prefix, uri)
+            h = {}
+            @nsdef[prefix] = true
+            if :default == prefix
+              h[:xmlns] = uri
+            else
+              h["xmlns:#{prefix}"] = uri
+            end
+            h
+          end
+
           def initialize(*a)
             super(*a)
             @nsm = XMLNamespaceManager.new
             @prefix = nil
             @nslist = []
+            @nsdef = {}
+            @pending_ns = false
           end
         end
         Tagz.singleton_class{ define_method(:document){ Tagz.namespace(:Document) } }
@@ -552,7 +576,8 @@ unless defined? Tagz
           def generate_prefix
             ('a'..'z').each do |l|
               ('0'..'9').each do |d|
-                return (p = l + d) unless @nsxpfx.has_key? p
+                p = l + d
+                return p unless @nsxpfx.has_key? p
               end
             end
           end

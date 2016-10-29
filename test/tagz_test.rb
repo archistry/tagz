@@ -952,4 +952,33 @@ class TagzTest < Test::Unit::TestCase
 
     assert_equal expected, actual
   end
+
+  def test_637
+    expected = '<?xml version="1.0" encoding="utf-8" ?><a:root xmlns:a="A:" xmlns:a0="B:"><a:a_child1><a:a_child2><a0:b_child1/><a0:b_child2>hello</a0:b_child2><a0:b_child3><a0:b_child4>some content</a0:b_child4></a0:b_child3></a:a_child2><a:a_child2><a0:b_child1>content1</a0:b_child1><a0:b_child2>content2</a0:b_child2><a0:b_child3/></a:a_child2></a:a_child1></a:root>'
+
+    nsa = "A:"
+    nsb = "B:"
+    actual = root_("xmlns:a" => nsa) {
+      a_child1_ {
+        a_child2_ {
+          tagz(:xmlns => nsb) {
+            b_child1_!
+            b_child2_ "hello"
+            b_child3_ {
+              b_child4_ "some content"
+            }
+          }
+        }
+        a_child2_ {
+          tagz(:xmlns => nsb) {
+            b_child1_ "content1"
+            b_child2_ "content2"
+            b_child3_!
+          }
+        }
+      }
+    }.to_xml
+
+    assert_equal expected, actual
+  end
 end
