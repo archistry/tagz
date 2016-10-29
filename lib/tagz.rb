@@ -138,7 +138,7 @@ unless defined? Tagz
         if content.empty?
           if block
             size = tagz.size
-            value = block.call(tagz)
+            value = block.arity.abs >= 1 ? block.call(tagz) : block.call()
 
             if value.nil?
               unless(tagz.size > size)
@@ -342,11 +342,20 @@ unless defined? Tagz
             self
           end
 
-          # new XML support
+          #-- new XML support
+
           attr_reader :prefix
 
           def to_xml(encoding = 'utf-8')
             "<?xml version=\"1.0\" encoding=\"#{encoding}\" ?>" << to_s
+          end
+
+          def register_namespace(prefix, nsuri)
+            @nsm.register_namespace(prefix, nsuri)
+          end
+
+          def register_default_namespace(nsuri)
+            @nsm.register_default_namespace(nsuri)
           end
 
           def using_namespace(nsuri = nil)

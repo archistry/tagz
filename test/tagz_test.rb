@@ -838,6 +838,8 @@ class TagzTest < Test::Unit::TestCase
   # automatically generated prefix will be used
 
   def test_630
+    expected = '<?xml version="1.0" encoding="utf-8" ?><a0:root xmlns:a0 = "Q:">content</a0:root>'
+
     c = Class.new{
       include Tagz.privately
       def a
@@ -845,25 +847,25 @@ class TagzTest < Test::Unit::TestCase
       end
     }.new
 
-    expected = '<?xml version="1.0" encoding="utf-8" ?><a0:root xmlns:a0 = "Q:">content</a0:root>'
     actual = c.a.to_xml
-
     assert_equal expected, actual
   end
 
   def test_631
+    expected = '<?xml version="1.0" encoding="utf-8" ?><new_root xmlns="DEFAULT:"><child>hello<grandchild>bitchin!</grandchild></child></new_root>'
+
     actual = new_root_(:xmlns => "DEFAULT:") { 
               child_("hello") { 
                 grandchild_ "bitchin!"
               }
             }.to_xml
 
-    expected = '<?xml version="1.0" encoding="utf-8" ?><new_root xmlns="DEFAULT:"><child>hello<grandchild>bitchin!</grandchild></child></new_root>'
-
     assert_equal expected, actual
   end
 
   def test_632
+    expected = '<?xml version="1.0" encoding="utf-8" ?><d:my-new-root xmlns:d="DEFAULT:"><d:child>hello<d:grandchild>bitchin!</d:grandchild><d:level3><d:level4><d:level5>whee!!</d:level5></d:level4></d:level3></d:child></d:my-new-root>'
+
     actual = tagz__("my-new-root", "xmlns:d" => "DEFAULT:") {
               child_("hello") {
                 grandchild_ "bitchin!"
@@ -875,12 +877,12 @@ class TagzTest < Test::Unit::TestCase
               }
             }.to_xml
 
-    expected = '<?xml version="1.0" encoding="utf-8" ?><d:my-new-root xmlns:d="DEFAULT:"><d:child>hello<d:grandchild>bitchin!</d:grandchild><d:level3><d:level4><d:level5>whee!!</d:level5></d:level4></d:level3></d:child></d:my-new-root>'
-
     assert_equal expected, actual
   end
 
   def test_633
+    expected = '<?xml version="1.0" encoding="utf-8" ?><a0:root xmlns:a0="DEFAULT:"><a0:level1><a0:level2><a0:level3><a0:level4><a0:level5>content</a0:level5></a0:level4></a0:level3></a0:level2></a0:level1></a0:root>'
+
     actual = tagz(:xmlns => "DEFAULT:") {
           root_ {
             level1_ {
@@ -897,12 +899,12 @@ class TagzTest < Test::Unit::TestCase
           }
         }.to_xml
     
-    expected = '<?xml version="1.0" encoding="utf-8" ?><a0:root xmlns:a0="DEFAULT:"><a0:level1><a0:level2><a0:level3><a0:level4><a0:level5>content</a0:level5></a0:level4></a0:level3></a0:level2></a0:level1></a0:root>'
-
     assert_equal expected, actual
   end
 
   def test_634
+    expected = '<?xml version="1.0" encoding="utf-8" ?><a0:root2 xmlns:a0="DEFAULT:"><a0:child>hello<a0:grandchild>bitchin!</a0:grandchild><a0:level3><a0:level4><a0:level5>whee!!</a0:level5></a0:level4></a0:level3></a0:child></a0:root2>'
+
     actual = tagz(:xmlns => "DEFAULT:") {
             root2_ {
               child_("hello") {
@@ -916,7 +918,12 @@ class TagzTest < Test::Unit::TestCase
             }
           }.to_xml
 
-    expected = '<?xml version="1.0" encoding="utf-8" ?><a0:root2 xmlns:a0="DEFAULT:"><a0:child>hello<a0:grandchild>bitchin!</a0:grandchild><a0:level3><a0:level4><a0:level5>whee!!</a0:level5></a0:level4></a0:level3></a0:child></a0:root2>'
+    assert_equal expected, actual
+  end
+
+  def test_635
+    expected = '<empty/>'
+    actual = empty_!
 
     assert_equal expected, actual
   end
