@@ -981,4 +981,48 @@ class TagzTest < Test::Unit::TestCase
 
     assert_equal expected, actual
   end
+
+  def test_638
+    expected = '<?xml version="1.0" encoding="utf-8" ?><?xml-stylesheet href="common.css"?><?xml-stylesheet href="default.css" title="Default Style"?><?xml-stylesheet alternate="yes" href="alt.css" title="Alternative Style"?><?xml-stylesheet href="single-col.css" media="all and (max-width: 30em)"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Example with xml-styleshet processing instructions</title></head><body>...</body></html>'
+
+    actual = tagz {
+      tagz_?("xml-stylesheet", :href=>"common.css")
+      tagz_?("xml-stylesheet", :href=>"default.css", :title=>"Default Style")
+      tagz_?("xml-stylesheet", :alternate=>"yes", :href=>"alt.css", :title=>"Alternative Style")
+      tagz_?("xml-stylesheet", :href=>"single-col.css", :media=>"all and (max-width: 30em)")
+      html_(:xmlns => "http://www.w3.org/1999/xhtml") {
+        head_ {
+          title_ "Example with xml-styleshet processing instructions"
+        }
+        body_ "..."
+      }
+    }.to_xml
+
+    assert_equal expected, actual
+  end
+
+  def test_639
+    expected = '<?xml version="1.0" encoding="utf-8" ?><?mso-infoPathSolution solutionVersion="..."?><?mso-application progid="..."?><my:myFields xmlns:my="http://..." xmlns:a0="B:"><my:field1>data</my:field1><my:field2/><my:container1><a0:nsb1>hello</a0:nsb1><a0:nsb2><a0:nsb3>xyzzy</a0:nsb3></a0:nsb2></my:container1><my:field3>special field</my:field3></my:myFields>'
+
+    nsb = "B:"
+    actual = tagz {
+      tagz_?("mso-infoPathSolution", :solutionVersion => "...")
+      tagz_?("mso-application", :progid => "...")
+      myFields_("xmlns:my" => "http://...") {
+        field1_ "data"
+        field2_!
+        container1_ {
+          tagz(:xmlns => nsb) {
+            nsb1_ "hello"
+            nsb2_ {
+              nsb3_ "xyzzy"
+            }
+          }
+        }
+        field3_ "special field"
+      }
+    }.to_xml
+
+    assert_equal expected, actual
+  end    
 end

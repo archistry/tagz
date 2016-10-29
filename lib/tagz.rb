@@ -82,51 +82,19 @@ unless defined? Tagz
       def tagz__(name, *argv, &block)
         options = argv.last.is_a?(Hash) ? argv.pop : {}
         content = argv
-        attributes = ''
 
         # Fix for existing bug if the root element has dashes
         # and this method is called without the #tagz wrapper
         @tagz ||= Tagz.document.new
 
-#        if tagz.has_prefix? && tagz.size == 0
-#          # We've been given a namespace in a closing
-#          # outer block and we haven't written anything
-#          # yet, so we output the namespace declarations
-#          options.merge! tagz.namespace_attrs
-#        end
-
-        unless options.empty?
-          booleans = []
-          options.each do |key, value|
-            case key.to_s
-            when /#{Tagz.namespace(:Boolean)}/
-              value = value.to_s =~ %r/\Atrue\Z/imox ? nil : "\"#{ key.to_s.downcase.strip }\""
-              booleans.push([key, value].compact)
-              next
-            when /^xmlns:?(.*)/
-              rp = tagz.get_prefix(value)
-              unless ("" == $1 && :default == rp) \
-                  || $1 == tagz.get_prefix(value)
-                tagz.reset_namespace($1, value)
-                tagz.using_namespace(value, true)
-              end
+        attributes = Tagz.process_attributes(options) do |k,v|
+          if k =~ /^xmlns:?(.*)/
+            rp = tagz.get_prefix(v)
+            unless ("" == $1 && :default == rp) \
+                || $1 == tagz.get_prefix(v)
+              tagz.reset_namespace($1, v)
+              tagz.using_namespace(v, true)
             end
-
-            key = Tagz.escape_key(key)
-            value = Tagz.escape_value(value)
-
-            if value =~ %r/"/
-              raise ArgumentError, value if value =~ %r/'/
-              value = "'#{ value }'"
-            else
-              raise ArgumentError, value if value =~ %r/"/
-              value = "\"#{ value }\""
-            end
-
-            attributes << ' ' << [key, value].join('=')
-          end
-          booleans.each do |kv|
-            attributes << ' ' << kv.compact.join('=')
           end
         end
 
@@ -173,6 +141,15 @@ unless defined? Tagz
         tagz
       end
 
+    # processing instruction
+    #
+
+    def tagz_? name, *argv
+      options = argv.last.is_a?(Hash) ? argv.pop : {}
+      attributes = Tagz.process_attributes options
+      tagz.write "<?#{ name }#{ attributes }?>"
+    end
+
     # allow initial registration of namespaces
 
       def tagz_register_namespace(prefix, nsuri)
@@ -189,6 +166,8 @@ unless defined? Tagz
       def method_missing(m, *a, &b)
         strategy =
           case m.to_s
+            when %r/^(.*[^?])_\?$/o
+              :processing_instruction
             when %r/^(.*[^_])_(!)?$/o
               :open_tag
             when %r/^_([^_].*)$/o
@@ -214,6 +193,10 @@ unless defined? Tagz
             m, bang = $1, $2
             b ||= lambda{} if bang
             tagz{ tagz__(m, *a, &b) }
+        
+          when :processing_instruction
+            m = $1
+            tagz{ tagz_?(m, *a) }
 
           when :close_tag
             m = $1
@@ -262,6 +245,42 @@ unless defined? Tagz
             else
               namespace.const_get(args.first.to_sym)
             end
+          }
+        }
+
+        Tagz.singleton_class{
+          define_method(:process_attributes){ |options, &block|
+            attributes = ''
+            unless options.empty?
+              booleans = []
+              options.each do |key, value|
+                case key.to_s
+                when /#{Tagz.namespace(:Boolean)}/
+                  value = value.to_s =~ %r/\Atrue\Z/imox ? nil : "\"#{ key.to_s.downcase.strip }\""
+                  booleans.push([key, value].compact)
+                  next
+                else
+                  block.call(key, value) if block
+                end
+
+                key = Tagz.escape_key(key)
+                value = Tagz.escape_value(value)
+
+                if value =~ %r/"/
+                  raise ArgumentError, value if value =~ %r/'/
+                  value = "'#{ value }'"
+                else
+                  raise ArgumentError, value if value =~ %r/"/
+                  value = "\"#{ value }\""
+                end
+
+                attributes << ' ' << [key, value].join('=')
+              end
+              booleans.each do |kv|
+                attributes << ' ' << kv.compact.join('=')
+              end
+            end
+            attributes
           }
         }
 
@@ -417,7 +436,7 @@ unless defined? Tagz
           end
 
           def fix_root_ns
-            i = index(">")
+            i = index(/(?<!\?)>/)
             attrs = ""
             @nsdef.each do |k,v|
               unless v

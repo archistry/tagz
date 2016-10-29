@@ -45,6 +45,8 @@ FEATURES
   - easy generation of xml with full namespace support that 'just does the 
     right thing'
 
+  - generate xml processing instructions
+
 RAILS
   
   in config/environment.rb
@@ -187,6 +189,51 @@ XML NAMESPACES
       }
     }.to_xml
 
+XML PROCESSING INSTRUCTIONS
+
+  support for simple processing instructions
+
+    tagz_?("xml-stylesheet", :href => "common.css")
+    html_ {
+      ...
+    }
+
+  support for multiple processing instructions and namespaces
+
+    puts tagz {
+      tagz_?("xml-stylesheet", :href=>"common.css")
+      tagz_?("xml-stylesheet", :href=>"default.css", :title=>"...")
+      tagz_?("xml-stylesheet", :alternate=>"yes", :href=>"alt.css", :title=>"...")
+      tagz_?("xml-stylesheet", :href=>"single-col.css", :media=>"...")
+      html_(:xmlns => "http://www.w3.org/1999/xhtml") {
+        head_ {
+          title_ "Example with xml-styleshet processing instructions"
+        }
+        body_ "..."
+      }
+    }.to_xml
+
+  support crazy MS content management systems and autogenerate some 
+  xml namepaces
+
+    puts tagz {
+      tagz_?("mso-infoPathSolution", :solutionVersion => "...")
+      tagz_?("mso-application", :progid => "...")
+      myFields_("xmlns:my" => "http://...") {
+        field1_ "data"
+        field2_!
+        container1_ {
+          tagz(:xmlns => NSB) {
+            nsb1_ "hello"
+            nsb2_ {
+              nsb3_ "xyzzy"
+            }
+          }
+        }
+        field3_ "special field"
+      }
+    }.to_xml
+
 INSTALL
 
   gem install tagz
@@ -198,7 +245,9 @@ URIS
 
 HISTORY
   10.0.0
-    - Added XML Namespace support
+    - Added XML namespace support
+
+    - Added XML processing instruction support
     
     - Fixed some minor bugs with empty tags and root tags with dashes
 
