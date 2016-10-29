@@ -33,7 +33,6 @@ unless defined? Tagz
         @tagz ||= nil ## shut wornings up
         previous = @tagz
 
-
         xmlns = nil
         options = argv.last.is_a?(Hash) ? argv.pop : {}
         document = argv.first
@@ -53,8 +52,7 @@ unless defined? Tagz
 
         if block
           @tagz ||= (Tagz.document.for(document) || Tagz.document.new)
-          @tagz.using_namespace(xmlns)
-
+          @tagz.using_namespace(xmlns) if xmlns
           begin
             previous_size = @tagz.size
 
@@ -68,9 +66,9 @@ unless defined? Tagz
               @tagz << content
             end
 
-            @tagz.reset_namespace
             @tagz
           ensure
+            @tagz.reset_namespace if xmlns
             @tagz = previous
           end
         else
@@ -139,6 +137,7 @@ unless defined? Tagz
           if block
             size = tagz.size
             value = block.arity.abs >= 1 ? block.call(tagz) : block.call()
+            tagz.reset_namespace if tagz.prefix
 
             if value.nil?
               unless(tagz.size > size)
@@ -158,9 +157,9 @@ unless defined? Tagz
 
             value = block.arity.abs >= 1 ? block.call(tagz) : block.call()
             tagz << value.to_s unless(tagz.size > size)
+            tagz.reset_namespace if tagz.prefix
           end
           tagz.push "</#{ tagz.node(name) }>"
-          tagz.reset_namespace
         end
 
         tagz
@@ -169,9 +168,20 @@ unless defined? Tagz
     # close_tag
     #
       def __tagz(tag, *a, &b)
+        tagz.reset_namespace if tagz.prefix
         tagz.push "</#{ tagz.node(tag) }>"
-        tagz.reset_namespace
         tagz
+      end
+
+    # allow initial registration of namespaces
+
+      def tagz_register_namespace(prefix, nsuri)
+        @tagz ||= Tagz.document.new
+        tagz.register_namespace(prefix, nsuri)
+      end
+
+      def tagz_register_default_namespace(nsuri)
+        tagz_register_namespace(:default, nsuri)
       end
 
     # catch special tagz methods
@@ -375,7 +385,8 @@ unless defined? Tagz
               prefix = (prefix == "" || prefix.nil? ? :default : prefix)
               @nsm.register_namespace(prefix, uri)
             else
-              prefix = @nslist.pop
+              @nslist.pop
+              prefix = @nslist[-1]
             end
             @prefix = prefix
           end

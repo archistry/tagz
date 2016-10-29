@@ -927,4 +927,29 @@ class TagzTest < Test::Unit::TestCase
 
     assert_equal expected, actual
   end
+
+  def test_636
+    expected = '<?xml version="1.0" encoding="utf-8" ?><D:propfind xmlns:D="D:" xmlns:R="http://ns.example.com/boxschema"><D:prop><R:bigbox/><R:author/><R:DingALing/><R:Random/></D:prop></D:propfind>'
+
+    nsd = "D:"
+    nsr = "http://ns.example.com/boxschema"
+
+    tagz_register_namespace("D", nsd)
+    tagz_register_namespace("R", nsr)
+
+    actual = tagz(:xmlns => nsd) {
+      propfind_ {
+        prop_ {
+          tagz(:xmlns => nsr) {
+            bigbox_!
+            author_!
+            DingALing_!
+            Random_!
+          }
+        }
+      }
+    }.to_xml
+
+    assert_equal expected, actual
+  end
 end
