@@ -92,7 +92,10 @@ RAILS
 
 XML NAMESPACES
 
-  using multiple namespaces that you predefine
+  using multiple namespaces that you predefine so you get the prefixes
+  you expect.  If you don't care what they are, then you don't need the
+  #tagz_register_namespace calls.  The right things will just happen
+  anyway (see the last example).
 
     NSD = "D:"
     NSR = "http://ns.example.com/boxschema"
@@ -160,6 +163,12 @@ XML NAMESPACES
         }
       }
     }.to_xml
+
+  NOTE: if you want to use more than one namespace in a document, it's
+  better to use the namespace definitions in a tagz block than doing a
+  mix and match of styles.  The automatic handling of the 'xmlns'
+  attribute is really only intended for use when you only have a single
+  namespace.
 
 INSTALL
 
